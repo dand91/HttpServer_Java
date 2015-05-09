@@ -1,0 +1,37 @@
+package Handler;
+
+import java.io.IOException;
+import java.io.OutputStream;
+import java.util.List;
+import java.util.Map;
+
+import HttpServer.SimpleHttpServer;
+
+import com.sun.net.httpserver.Headers;
+import com.sun.net.httpserver.HttpExchange;
+
+
+public class GraphHandler extends Handler implements Runnable {
+	public GraphHandler(SimpleHttpServer server) {super(server);}
+	public void handle(HttpExchange t) throws IOException {
+		
+		
+		if(authenticate(t)){
+			
+		response = server.fileMap.get("graph.html");
+		response = insertAddress(response);			
+		send(t);
+
+	
+		}else{
+			
+			System.out.println("Identification: Login unsuccessful");
+
+		}
+	}
+	@Override
+	public void run() {
+		// TODO Auto-generated method stub
+		
+	}
+}

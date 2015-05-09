@@ -1,0 +1,331 @@
+package Database;
+
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.util.ArrayList;
+import java.util.List;
+
+
+/**
+ * JDBC and the MySQL Connector/J driver.
+ */
+public class Database {
+
+	private Connection conn;
+	protected boolean connected;	
+    private static Database db;
+
+
+	public Database() {
+		conn = null;
+	}
+	
+	  public static void initiate() {
+	        db = new Database();
+	    }
+
+	    public static Database getInstance() throws Exception {
+	        if (db != null) {
+	            return db;
+	        } else {
+	            throw new Exception("Must initiate Database first");
+	        }
+	    }
+
+	/**
+	 * Open a connection to the database, using the specified user name and
+	 * password.
+	 *
+	 * @param userName
+	 *            The user name.
+	 * @param password
+	 *            The user's password.
+	 * @return true if the connection succeeded, false if the supplied user name
+	 *         and password were not recognized. Returns false also if the JDBC
+	 *         driver isn't found.
+	 */
+	public boolean openConnection(String userName, String password) {
+		try {
+			Class.forName("com.mysql.jdbc.Driver");
+			conn = DriverManager.getConnection(
+					"jdbc:mysql://localhost/mysql", userName, password);
+			
+			PreparedStatement ps = conn
+					.prepareStatement("USE WEB");
+			ps.execute();
+
+		} catch (SQLException e) {
+			System.out.println("DatabaseInitiate: Database not started ");
+
+			return false;
+		} catch (ClassNotFoundException e) {
+			System.out.println("DatabaseInitiate: Database not started ");
+
+			return false;
+		}
+
+		return isConnected();
+	}
+
+
+	/**
+	 * Close the connection to the database.
+	 */
+	public void closeConnection() {
+
+		try {
+			if (conn != null) {
+				conn.close();
+			}
+		} catch (SQLException e) {
+		}
+		conn = null;
+	}
+
+	/**
+	 * Check if the connection to the database has been established
+	 *
+	 * @return true if the connection has been established
+	 */
+	public boolean isConnected() {
+		return conn != null;
+	}
+
+	public ArrayList<Integer> getData(String prefix) {
+
+		ArrayList<Integer> list = new ArrayList<Integer>();
+		
+		try {
+
+			PreparedStatement ps = conn
+					.prepareStatement("SELECT data FROM dataTable WHERE type = ? ORDER BY inputDate DESC LIMIT 100 ");
+
+			ps.setString(1, prefix);
+			ResultSet rs = ps.executeQuery();
+
+			while(rs.next()) {
+
+				list.add(rs.getInt("data"));
+				
+			}
+				return list;
+
+		} catch (SQLException e) {
+
+			e.printStackTrace();
+		}
+
+		return null;
+
+	}
+
+	public boolean login(String username, String password) {
+
+		try {
+
+			PreparedStatement ps = conn
+					.prepareStatement("SELECT username from Users WHERE username = ? AND password = ?");
+			
+			ps.setString(1, username);
+			ps.setString(2, password);
+			
+			return ps.executeQuery().next();
+			
+		} catch (SQLException e) {
+
+			e.printStackTrace();
+		}
+		return false;
+
+	}
+	
+	public boolean mLogin(String username){
+		
+		try{
+		
+		PreparedStatement ps = conn
+					.prepareStatement("UPDATE Users SET status = ? WHERE username = ?");
+			
+			ps.setString(1, "online");
+			ps.setString(2, username);
+			
+			return ps.executeUpdate() > 1;
+		
+	} catch (SQLException e) {
+
+		e.printStackTrace();
+	}
+	return false;
+	}
+	
+	public boolean mLogout(String username) {
+
+		try {
+
+			PreparedStatement ps = conn
+					.prepareStatement("UPDATE Users SET status = ? WHERE username = ?");
+			
+			ps.setString(1, "offline");
+			ps.setString(2, username);
+
+			return ps.executeUpdate() > 1;
+
+		} catch (SQLException e) {
+
+			e.printStackTrace();
+		}
+		return false;
+
+	}
+
+
+	public boolean loggData(String data, String type) {
+		
+		try {
+
+			conn.setAutoCommit(false);
+			
+			PreparedStatement ps = conn
+					.prepareStatement("INSERT INTO DataTable (data, type) values(?,?)");
+			
+			ps.setString(1, data);
+			ps.setString(2, type);
+
+			conn.commit();
+			conn.setAutoCommit(true);
+
+			return ps.execute();
+
+		} catch (SQLException e) {
+
+			try {
+				
+				conn.rollback();
+				conn.setAutoCommit(true);
+				System.out.println("DatabaseInitiate: SQL error");
+				
+			} catch (SQLException e1) {
+				
+				System.out.println("DatabaseInitiate: Unable to rollback");
+			}
+
+		}
+		
+		return false;
+
+		
+	}
+	
+	public boolean loggNote(String note, String username) {
+		
+		try {
+
+			conn.setAutoCommit(false);
+			
+			PreparedStatement ps = conn
+					.prepareStatement("INSERT INTO NoteTable (note, username) values(?, ?)");
+			
+			ps.setString(1, note);
+			ps.setString(2, username);
+
+			conn.commit();
+			conn.setAutoCommit(true);
+
+			return ps.execute();
+
+		} catch (SQLException e) {
+
+			try {
+				
+				conn.rollback();
+				conn.setAutoCommit(true);
+				System.out.println("DatabaseInitiate: SQL error");
+				
+			} catch (SQLException e1) {
+				
+				System.out.println("DatabaseInitiate: Unable to rollback");
+			}
+
+		}
+		
+		return false;
+
+		
+	}
+	public ArrayList<String> getNotes(String username) {
+
+		ArrayList<String> list = new ArrayList<String>();
+		
+		try {
+
+			PreparedStatement ps = conn
+					.prepareStatement("SELECT note, inputDate FROM NoteTable  WHERE username = ? ORDER BY inputDate DESC LIMIT 10 ");
+			ps.setString(1, username);
+
+			ResultSet rs = ps.executeQuery();
+
+			while(rs.next()) {
+
+				list.add(rs.getString("note") + "   Posted: " + rs.getString("inputDate"));
+			}
+				return list;
+
+		} catch (SQLException e) {
+
+			e.printStackTrace();
+		}
+
+		return null;
+
+	}
+
+	public ArrayList<String> getOnline() {
+
+	ArrayList<String> list = new ArrayList<String>();
+	
+	try {
+
+		PreparedStatement ps = conn
+				.prepareStatement("SELECT username FROM Users WHERE status = ?  LIMIT 10");
+
+		ps.setString(1, "online");
+		ResultSet rs = ps.executeQuery();
+
+		while(rs.next()) {
+
+			list.add(rs.getString("username") + "<:>");
+		}
+			return list;
+
+	} catch (SQLException e) {
+
+		e.printStackTrace();
+	}
+
+	return null;
+
+}
+	public void removeNote(String username, String date) {
+		
+		try {
+	
+
+			PreparedStatement ps = conn
+					.prepareStatement("DELETE FROM Notetable WHERE username = ? AND inputDate = ?");
+			ps.setString(1, username);
+			ps.setString(2, date);
+
+			ps.execute();
+
+		} catch (SQLException e) {
+
+			e.printStackTrace();
+		}
+
+		
+	}
+}
+

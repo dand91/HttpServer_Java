@@ -1,0 +1,37 @@
+package Handler;
+
+import java.io.IOException;
+import java.io.OutputStream;
+import java.util.ArrayList;
+import java.util.HashMap;
+
+import HttpServer.SimpleHttpServer;
+
+import com.sun.net.httpserver.HttpExchange;
+
+public class MessageHandler extends Handler {
+	
+	HashMap<String, OutputStream> list;
+	ArrayList<String> onlineList;
+	
+	public MessageHandler(SimpleHttpServer server) {
+		super(server);
+		this.list = new HashMap<String, OutputStream>();
+		this.onlineList = new ArrayList<String>();
+	}
+
+	public void handle(HttpExchange t) throws IOException {
+
+		if (authenticate(t)) {			
+
+			response = server.fileMap.get("message.html");
+			response = insertAddress(response);			
+			send(t);
+						
+		} else {
+
+			System.out.println("Identification: Login unsuccessful");
+
+		}
+	}
+}

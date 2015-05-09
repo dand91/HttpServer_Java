@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<session version="1.0">
+<refactoring comment="Copy package &apos;Reader&apos; to &apos;HttpServer/src/(default package)&apos;&#x0A;- Original project: &apos;Sensor_Sound&apos;&#x0A;- Destination element: &apos;HttpServer/src/(default package)&apos;&#x0A;- Original element: &apos;Sensor_Sound/src/Reader&apos;" description="Copy package" destination="=HttpServer/src&lt;" element1="/src&lt;Reader" flags="589830" fragments="1" id="org.eclipse.jdt.ui.copy" policy="org.eclipse.jdt.ui.copyPackages" stamp="1428577179166" version="1.0"/>
+</session>

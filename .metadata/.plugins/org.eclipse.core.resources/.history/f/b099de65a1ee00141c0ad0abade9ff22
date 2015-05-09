@@ -1,0 +1,80 @@
+package Handler;
+
+import java.io.IOException;
+import java.io.OutputStream;
+import java.util.ArrayList;
+import java.util.HashMap;
+
+import HttpServer.SimpleHttpServer;
+
+import com.sun.net.httpserver.HttpExchange;
+
+public class MessageHandler extends Handler {
+	
+	HashMap<String, OutputStream> list;
+	ArrayList<String> onlineList;
+	
+	public MessageHandler(SimpleHttpServer server) {
+		super(server);
+		this.list = new HashMap<String, OutputStream>();
+		this.onlineList = new ArrayList<String>();
+	}
+
+	public void handle(HttpExchange t) throws IOException {
+
+		
+		if (authenticate(t)) {			
+			
+			if(params != null){
+				
+				System.out.println(params.get("message"));
+			}
+			System.out.println(params.get("message").equals("mLogin") + " 1");
+			System.out.println(params.get("message").equals("mLogout") + " 2");
+
+			if (params.get("message").equals("mLogin")) {
+
+				server.db.mLogin((String) params.get("loginUser"));
+
+				onlineList.addAll(server.db.getOnline());
+
+				StringBuilder sb = new StringBuilder();
+
+				for (int i = 0; i < onlineList.size(); i++) {
+
+					sb.append(onlineList.get(i));
+				}
+				response = sb.toString();
+				send(t);
+				return;
+
+			}
+
+			if (params.get("message").equals("mLogout")) {
+
+				onlineList.clear();
+				server.db.mLogout((String) params.get("logoutUser"));
+				onlineList.addAll(server.db.getOnline());
+
+				StringBuilder sb = new StringBuilder();
+
+				for (int i = 0; i < onlineList.size(); i++) {
+
+					sb.append(onlineList.get(i));
+				}
+				response = sb.toString();
+				send(t);
+				return;
+
+			}
+
+			response = server.fileMap.get("message.html");
+			send(t);
+						
+		} else {
+
+			System.out.println("Identification: Login unsuccessful");
+
+		}
+	}
+}

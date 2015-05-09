@@ -1,0 +1,141 @@
+package HttpServer;
+
+import java.io.BufferedInputStream;
+import java.io.BufferedReader;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.io.OutputStream;
+import java.net.InetAddress;
+import java.net.InetSocketAddress;
+import java.net.URL;
+import java.util.ArrayList;
+import java.util.Observable;
+import java.util.Observer;
+
+import Reader.SoundReader;
+
+import com.sun.net.httpserver.Headers;
+import com.sun.net.httpserver.HttpExchange;
+import com.sun.net.httpserver.HttpHandler;
+import com.sun.net.httpserver.HttpServer;
+
+public class SimpleHttpServer extends Observable implements Observer  {
+	
+	private SoundReader reader;
+	private Thread thread;
+	private HttpServer server;
+	private ArrayList<String> list = new ArrayList<String>();
+	
+	public SimpleHttpServer(){
+		
+		reader = new SoundReader("/dev/tty.usbmodem1421", this);
+		reader.addObserver(this);
+		thread = new Thread(reader);
+		thread.start();
+		  
+	    try {
+	    	
+	    	URL whatismyip = new URL("http://checkip.amazonaws.com");
+	    	BufferedReader in = new BufferedReader(new InputStreamReader(
+	    	                whatismyip.openStream()));
+
+	    	String ip = in.readLine(); //you get the IP as a String
+	    
+	    server = HttpServer.create(new InetSocketAddress("193.14.22.235",8000), 0);
+	    System.out.println(ip);
+	    server.createContext("/info", new InfoHandler(this));
+	    server.createContext("/get", new GetHandler(this));
+	    server.setExecutor(null); // creates a default executor
+	    server.start();    
+	    
+		} catch (IOException e) {
+
+			e.printStackTrace();
+		}
+	}
+	
+  public void send(String string){
+	  
+	  this.setChanged();
+	  this.notifyObservers(string);
+
+	  
+  }
+  public String getList(){
+	  
+	  return list.toString();
+  }
+
+  public static void main(String[] args) throws Exception {
+	  
+	  	SimpleHttpServer http = new SimpleHttpServer();
+	  
+  }
+
+  static class InfoHandler implements HttpHandler {
+	  
+	  
+	  SimpleHttpServer server;
+	  
+	  	public InfoHandler(SimpleHttpServer server){
+	  		
+	  		this.server = server;
+	  		
+	  	}
+    public void handle(HttpExchange t) throws IOException {
+    	
+//      String response = "Use /get to download a PDF HEJSAN";
+      String response = server.getList();
+      
+      t.sendResponseHeaders(200, response.length());
+      OutputStream os = t.getResponseBody();
+      os.write(response.getBytes());
+      os.close();
+      
+      server.send("*");
+
+    }
+  }
+
+  static class GetHandler implements HttpHandler {
+	  
+	  SimpleHttpServer server;
+	  
+	  	public GetHandler(SimpleHttpServer ob){
+	  		
+	  		this.server = server;
+	  		
+	  	}
+	  
+    public void handle(HttpExchange t) throws IOException {
+
+      // add the required response header for a PDF file
+      Headers h = t.getResponseHeaders();
+      h.add("Content-Type", "application/pdf");
+
+      // a PDF (you provide your own!)
+      File file = new File ("c:/temp/doc.pdf");
+      byte [] bytearray  = new byte [(int)file.length()];
+      FileInputStream fis = new FileInputStream(file);
+      BufferedInputStream bis = new BufferedInputStream(fis);
+      bis.read(bytearray, 0, bytearray.length);
+
+      // ok, we are ready to send the response.
+      t.sendResponseHeaders(200, file.length());
+      OutputStream os = t.getResponseBody();
+      os.write(bytearray,0,bytearray.length);
+      os.close();
+            
+      server.send("*");
+    }
+  }
+
+@Override
+public void update(Observable o, Object arg){
+	
+	list.add((String) arg);
+	
+	}
+}

@@ -1,0 +1,286 @@
+package HttpServer;
+
+import java.io.BufferedReader;
+import java.io.FileReader;
+import java.io.IOException;
+import java.io.OutputStream;
+import java.net.InetSocketAddress;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.Map;
+import java.util.Observable;
+import java.util.Set;
+import java.util.concurrent.Executors;
+
+import jssc.SerialPortException;
+import Database.Database;
+import Reader.ArduinoReader;
+
+import com.sun.net.httpserver.HttpContext;
+import com.sun.net.httpserver.HttpExchange;
+import com.sun.net.httpserver.HttpHandler;
+import com.sun.net.httpserver.HttpServer;
+
+public class SimpleHttpServer extends Observable{
+
+	private ArduinoReader reader;
+	
+	private Thread thread;
+	
+	private HttpServer server;
+	
+	private ArrayList<String> list = new ArrayList<String>();
+	
+	private static final String address = "192.168.0.199";
+	
+	private static final int port = 8001;
+
+	
+	public HashMap<String, String> fileMap = new HashMap<String, String>();
+	
+	public String[] fileList = { "/Users/Andersson/Google Drive/Aptana_saved_files/HtmlServer_workspace/HtmlServer/startPage.html",
+								 "/Users/Andersson/Google Drive/Aptana_saved_files/HtmlServer_workspace/HtmlServer/startPage2.html",
+								 "/Users/Andersson/Google Drive/Aptana_saved_files/HtmlServer_workspace/HtmlServer/graphPage.html",
+								 "/Users/Andersson/Google Drive/Aptana_saved_files/HtmlServer_workspace/HtmlServer/graphPage2.html",
+										};
+	
+	public String[] fileName = { "startPage",
+								 "startPage2",
+								 "graph",
+								 "graph2"
+								 };
+	
+	private Database db;
+	
+	protected boolean connected;
+
+	public SimpleHttpServer() {
+
+		initiateDatabase();
+		initiateReader();
+		initiateFiles();
+		initiateServer();
+	
+	}
+	
+	private String insertData(String data1, String html){
+		
+		html = 	html.replaceAll("\"<data1>\"", data1);
+
+		return html;
+	}
+	
+	public static String insertAddress(String html){
+				
+		html = 	html.replaceAll("<address>", address);	
+		html = 	html.replaceAll("<port>", String.valueOf(port));	
+
+		return html;
+	}
+	
+	private void sendToReader(String string) {
+
+		this.setChanged();
+		this.notifyObservers(string);
+
+	}
+
+	private String getList() {
+
+		return list.toString();
+	}
+
+	private void  initiateServer(){
+		
+		try {
+//
+//			 URL whatismyip = new URL("http://checkip.amazonaws.com");
+//			 BufferedReader in = new BufferedReader(new InputStreamReader(
+//			 whatismyip.openStream()));
+//			
+//			 String ip = in.readLine(); //you get the IP as a String
+//			 System.out.println("ServerInitiate: Server global address is -" + ip);
+			
+			server = HttpServer.create(new InetSocketAddress(address,port), 5);
+
+			HttpContext context1 = server.createContext("/login", new LoginHandler(this));
+			HttpContext context2 = server.createContext("/graph", new GraphHandler(this));
+			HttpContext context3 = server.createContext("/data", new DataHandler(this));
+
+			context1.getFilters().add(new ParameterFilter());
+			context2.getFilters().add(new ParameterFilter());
+			context3.getFilters().add(new ParameterFilter());
+
+			server.setExecutor(Executors.newFixedThreadPool(10));
+			server.start();
+			System.out.println("ServerInitiate: Server started.");
+
+		} catch (IOException e) {
+
+			e.printStackTrace();
+		}
+	}
+	
+	private void initiateReader() {
+
+		try {
+
+			reader = new ArduinoReader("/dev/tty.usbmodem1421", this);
+			thread = new Thread(reader);
+			thread.start();
+			
+			System.out.println("ReaderInitiate: Seral reader started.");
+
+
+		} catch (SerialPortException e1) {
+
+			System.out.println("ReaderInitiate: Unable to start seral reader.");
+		}
+	}
+
+	private void initiateFiles() {
+
+		for (int i = 0; i < fileList.length; i++) {
+
+			StringBuilder contentBuilder = new StringBuilder();
+			try {
+				BufferedReader in = new BufferedReader(new FileReader(
+						fileList[i]));
+				String str;
+				while ((str = in.readLine()) != null) {
+					contentBuilder.append(str);
+				}
+				in.close();
+			} catch (IOException e) {
+			}
+
+			fileMap.put(fileName[i], contentBuilder.toString());
+		}
+		System.out.println("FileInitiate: All files read.");
+	}
+	
+	private void initiateDatabase(){
+			
+		    Database.initiate();
+
+		      try {
+		    	  
+		        this.db = Database.getInstance();
+		        if(this.db.openConnection("DAnd91", "Taylorutveckling")){
+		        	
+					System.out.println("DatabaseInitiate: Database initiated.");
+		        }
+
+		  } catch (Exception e) {
+			  
+				System.out.println("DatabaseInitiate: Unable to initiate database.");
+
+		    e.printStackTrace();
+		  }
+	}
+	
+	private Map<String, String> queryToMap(String query){
+		
+	    Map<String, String> result = new HashMap<String, String>();
+	    for (String param : query.split("&")) {
+	        String pair[] = param.split("=");
+	        if (pair.length>1) {
+	            result.put(pair[0], pair[1]);
+	        }else{
+	            result.put(pair[0], "");
+	        }
+	    }
+	    return result;
+	}
+
+	static class LoginHandler implements HttpHandler {
+		SimpleHttpServer server;
+		public LoginHandler(SimpleHttpServer server) {this.server = server;}
+		public void handle(HttpExchange t) throws IOException {
+
+			String response = server.fileMap.get("startPage");
+			response = insertAddress(response);			
+			
+			t.sendResponseHeaders(200, response.length());
+			OutputStream os = t.getResponseBody();
+			os.write(response.getBytes());
+			os.close();
+		}
+	}
+	
+	static class GraphHandler implements HttpHandler {
+		SimpleHttpServer server;
+		public GraphHandler(SimpleHttpServer server) {this.server = server;}
+		public void handle(HttpExchange t) throws IOException {
+			
+			Map params = (Map)t.getAttribute("parameters");
+
+			if(server.db.login((String)params.get("username"),(String)params.get("password"))){
+									
+			String response = server.fileMap.get("graph2");
+			
+			response = insertAddress(response);
+						
+			t.sendResponseHeaders(200, response.length());
+			OutputStream os = t.getResponseBody();
+			os.write(response.getBytes());
+			os.close();
+		
+			}else{
+				
+				System.out.println("Identification: Login unsuccessful");
+
+			}
+		}
+	}
+	
+	static class DataHandler implements HttpHandler {
+		SimpleHttpServer server;
+		public DataHandler(SimpleHttpServer server) {this.server = server;}
+		public void handle(HttpExchange t) throws IOException {
+			
+
+			Map params = (Map)t.getAttribute("parameters");
+			
+
+			if(server.db.login((String)params.get("username"),(String)params.get("password"))){
+							
+				String command;
+				String data1;
+				String data2;
+				
+				if(server.reader != null &&
+						(command = (String)params.get("command")) != null){
+					
+					server.sendToReader(command);
+				}
+				
+				if(server.reader != null && ((data1 = (String)params.get("data1")) != null) 
+						&& (data2 = (String)params.get("data2")) != null){
+					
+					ArrayList<Integer> temp = server.db.getData(data1);
+					temp.addAll(server.db.getData(data2));
+					String response = temp.toString();
+												
+					t.sendResponseHeaders(200, response.length());
+					OutputStream os = t.getResponseBody();
+					os.write(response.getBytes());
+					os.close();
+					
+				}
+				
+			}else{
+				
+				System.out.println("Identification: Login unsuccessful");
+
+			}
+		}
+	}
+	
+	public static void main(String[] args) throws Exception {
+
+		SimpleHttpServer http = new SimpleHttpServer();
+
+	}
+}

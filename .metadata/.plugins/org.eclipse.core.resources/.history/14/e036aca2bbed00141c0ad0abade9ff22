@@ -1,0 +1,40 @@
+package Handler;
+
+import java.io.IOException;
+import java.io.OutputStream;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+
+import HttpServer.SimpleHttpServer;
+
+import com.sun.net.httpserver.Headers;
+import com.sun.net.httpserver.HttpExchange;
+
+
+public class FileHandler extends Handler {
+	public FileHandler(SimpleHttpServer server) {super(server);}
+	public void handle(HttpExchange t) throws IOException {
+		
+		for(Object s: params.values()){
+			
+			System.out.println(s);
+		}
+			
+		if(authenticate(t)){
+
+		response = server.fileMap.get("file.html");
+		response = insertAddress(response);
+					
+		send(t);
+
+	
+		}else{
+			
+			System.out.println("Identification: Login unsuccessful");
+
+		}
+	}
+}

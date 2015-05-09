@@ -1,0 +1,29 @@
+CREATE TABLE Users(
+
+username VARCHAR(30),
+password VARCHAR(30),
+level VARCHAR(30) NOT NULL,
+status VARCHAR(30)
+PRIMARY KEY(username,password)
+
+);
+
+CREATE TABLE DataTable(
+
+id INT NOT NULL AUTO_INCREMENT,
+data INT,
+type VARCHAR(20),
+inputDate DATETIME DEFAULT CURRENT_TIMESTAMP,
+PRIMARY KEY(id)
+
+);
+
+CREATE TABLE NoteTable(
+
+id INT NOT NULL AUTO_INCREMENT,
+note VARCHAR(250),
+username VARCHAR(30),
+inputDate DATETIME DEFAULT CURRENT_TIMESTAMP,
+PRIMARY KEY(id),
+FOREIGN KEY (username) REFERENCES Users (username)
+);

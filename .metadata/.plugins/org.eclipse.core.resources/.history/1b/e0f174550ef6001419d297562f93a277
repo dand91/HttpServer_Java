@@ -1,0 +1,191 @@
+package HttpServer;
+
+import java.io.BufferedReader;
+import java.io.FileReader;
+import java.io.IOException;
+import java.net.InetSocketAddress;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Observable;
+import java.util.concurrent.Executors;
+
+import jssc.SerialPortException;
+import Database.Database;
+import Handler.CSSHandler;
+import Handler.DataHandler;
+import Handler.FileHandler;
+import Handler.GraphHandler;
+import Handler.JSHandler;
+import Handler.LoginHandler;
+import Handler.MessageHandler;
+import Handler.NoteHandler;
+import Handler.messageDataHandler;
+import Reader.ArduinoReader;
+
+import com.sun.net.httpserver.HttpContext;
+import com.sun.net.httpserver.HttpServer;
+
+public class SimpleHttpServer extends Observable{
+
+	public ArduinoReader reader;
+	private Thread thread;
+	private HttpServer server;
+	public  String address = "192.168.0.199";	
+//	public  String address = "localhost";		
+//	public  String address ="10.3.21.195";
+	public int port = 8000;
+
+	public HashMap<String, String> fileMap = new HashMap<String, String>();
+	
+	public String[] fileList = { "/Users/Andersson/Google Drive/Aptana_saved_files/HtmlServer_workspace/HtmlServer/startPage.html",
+								 "/Users/Andersson/Google Drive/Aptana_saved_files/HtmlServer_workspace/HtmlServer/graphPage.html",
+								 "/Users/Andersson/Google Drive/Aptana_saved_files/HtmlServer_workspace/HtmlServer/filePage.html",
+								 "/Users/Andersson/Google Drive/Aptana_saved_files/HtmlServer_workspace/HtmlServer/notePage.html",
+								 "/Users/Andersson/Google Drive/Aptana_saved_files/HtmlServer_workspace/HtmlServer/messagePage.html",
+								 "/Users/Andersson/Google Drive/Aptana_saved_files/HtmlServer_workspace/HtmlServer/CSS/PageStyle.css",
+								 "/Users/Andersson/Google Drive/Aptana_saved_files/HtmlServer_workspace/HtmlServer/CSS/MenuStyle.css",
+								 "/Users/Andersson/Google Drive/Aptana_saved_files/HtmlServer_workspace/HtmlServer/JavaScript/jquery.js"
+										};
+	
+	public String[] fileName = { 
+								 "startPage.html",
+								 "graph.html",
+								 "file.html",
+								 "note.html",
+								 "message.html",
+								 "PageStyle.css",
+								 "MenuStyle.css",
+								 "jquery.js"
+								 };
+	
+	public Database db;
+	
+	protected boolean connected;
+
+	public SimpleHttpServer() {
+
+		initiateDatabase();
+		initiateReader();
+		initiateFiles();
+		initiateServer();
+	
+	}
+	
+	public void sendToReader(String string) {
+
+		this.setChanged();
+		this.notifyObservers(string);
+
+	}
+
+	private void  initiateServer(){
+		
+		try {
+
+			server = HttpServer.create(new InetSocketAddress(address,port), 0);
+
+			HttpContext context1 = server.createContext("/", new LoginHandler(this));
+			HttpContext context2 = server.createContext("/graph", new GraphHandler(this));
+			HttpContext context3 = server.createContext("/file", new FileHandler(this));
+			HttpContext context4 = server.createContext("/note", new NoteHandler(this));
+			HttpContext context5 = server.createContext("/message", new MessageHandler(this));
+			HttpContext context8 = server.createContext("/CSS", new CSSHandler(this));
+			HttpContext context9 = server.createContext("/JavaScript", new JSHandler(this));
+			
+			context1.getFilters().add(new ParameterFilter());
+			context2.getFilters().add(new ParameterFilter());
+			context3.getFilters().add(new ParameterFilter());
+			context4.getFilters().add(new ParameterFilter());
+			context5.getFilters().add(new ParameterFilter());
+			context8.getFilters().add(new ParameterFilter());
+			context9.getFilters().add(new ParameterFilter());
+			
+			server.setExecutor(Executors.newFixedThreadPool(100));
+			server.start();
+			System.out.println("ServerInitiate: Server started.");
+
+		} catch (IOException e) {
+
+			e.printStackTrace();
+		}
+	}
+	
+	private void initiateReader() {
+
+		try {
+
+			reader = new ArduinoReader("/dev/tty.usbmodem1421", this);
+			thread = new Thread(reader);
+			thread.start();
+			
+			System.out.println("ReaderInitiate: Serial reader started.");
+
+
+		} catch (SerialPortException e1) {
+
+			System.out.println("ReaderInitiate: Unable to start serial reader.");
+		}
+	}
+
+	private void initiateFiles() {
+
+		for (int i = 0; i < fileList.length; i++) {
+
+			StringBuilder contentBuilder = new StringBuilder();
+			try {
+				BufferedReader in = new BufferedReader(new FileReader(
+						fileList[i]));
+				String str;
+				while ((str = in.readLine()) != null) {
+					contentBuilder.append(str);
+				}
+				in.close();
+			} catch (IOException e) {
+			}
+
+			fileMap.put(fileName[i], contentBuilder.toString());
+		}
+		System.out.println("FileInitiate: All files read.");
+	}
+	
+	private void initiateDatabase(){
+			
+		    Database.initiate();
+
+		      try {
+		    	  
+		        this.db = Database.getInstance();
+		        if(this.db.openConnection("DAnd91", "Taylorutveckling")){
+		        	
+					System.out.println("DatabaseInitiate: Database initiated.");
+		        }
+
+		  } catch (Exception e) {
+			  
+				System.out.println("DatabaseInitiate: Unable to initiate database.");
+
+		    e.printStackTrace();
+		  }
+	}
+	
+	private Map<String, String> queryToMap(String query){
+		
+	    Map<String, String> result = new HashMap<String, String>();
+	    for (String param : query.split("&")) {
+	        String pair[] = param.split("=");
+	        if (pair.length>1) {
+	            result.put(pair[0], pair[1]);
+	        }else{
+	            result.put(pair[0], "");
+	        }
+	    }
+	    return result;
+	}
+
+	
+	public static void main(String[] args) throws Exception {
+
+		SimpleHttpServer http = new SimpleHttpServer();
+
+	}
+}

@@ -1,0 +1,119 @@
+package Handler;
+
+import java.io.IOException;
+import java.io.OutputStream;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+
+import HttpServer.SimpleHttpServer;
+
+import com.sun.net.httpserver.HttpExchange;
+
+public class MessageHandler extends Handler {
+	
+	HashMap<String, OutputStream> list;
+	OnlineList onlineList;
+	
+	public MessageHandler(SimpleHttpServer server) {
+		super(server);
+		this.list = new HashMap<String, OutputStream>();
+		this.onlineList = new OnlineList();
+	}
+
+	public void handle(HttpExchange t) throws IOException {
+
+		
+		if (authenticate(t)) {			
+			
+			
+			if(params.get("sendMessage") != null){
+				
+				String toUser = ((String)params.get("toUser")).split("User: ")[1];
+				String message = (String)params.get("sendMessage");
+				System.out.println(">" + toUser + "< >" + message + "<");
+			}
+			if(params.get("message") != null){
+				
+
+			if (params.get("message").equals("mLogin")) {
+
+				server.db.mLogin((String) params.get("loginUser"));
+
+				onlineList.addAll(server.db.getOnline());
+
+				StringBuilder sb = new StringBuilder();
+
+				for (int i = 0; i < onlineList.size(); i++) {
+
+					sb.append(onlineList.get(i));
+				}
+				response = sb.toString();
+				send(t);
+				return;
+
+			}
+
+			if (params.get("message").equals("mLogout")) {
+
+				onlineList.clear();
+				server.db.mLogout((String) params.get("logoutUser"));
+				onlineList.addAll(server.db.getOnline());
+
+				StringBuilder sb = new StringBuilder();
+
+				for (int i = 0; i < onlineList.size(); i++) {
+
+					sb.append(onlineList.get(i));
+				}
+				response = sb.toString();
+				send(t);
+				return;
+
+			}
+			}
+
+			response = server.fileMap.get("message.html");
+			send(t);
+						
+		} else {
+
+			System.out.println("Identification: Login unsuccessful");
+
+		}
+	}
+}
+
+class OnlineList {
+
+	public ArrayList<String> list;
+
+	public OnlineList() {
+
+		this.list = new ArrayList<String>();
+	}
+
+	public void clear() {
+
+		list.clear();
+	}
+
+	public String get(int i) {
+		return list.get(i);
+	}
+
+	public int size() {
+
+		return list.size();
+	}
+
+	public void addAll(List<String> newList) {
+
+		for (String s : newList) {
+
+			if (!list.contains(s)) {
+				list.add(s);
+			}
+		}
+	}
+}

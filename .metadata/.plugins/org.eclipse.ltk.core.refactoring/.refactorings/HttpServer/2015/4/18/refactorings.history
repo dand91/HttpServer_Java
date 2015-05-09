@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<session version="1.0">
+<refactoring comment="Rename method &apos;Database.Database.logout(...)&apos; to &apos;mLogout&apos;&#x0A;- Original project: &apos;HttpServer&apos;&#x0A;- Original element: &apos;Database.Database.logout(...)&apos;&#x0A;- Renamed element: &apos;Database.Database.mLogout(...)&apos;&#x0A;- Update references to refactored element" delegate="false" deprecate="false" description="Rename method &apos;logout&apos;" flags="589830" id="org.eclipse.jdt.ui.rename.method" input="/src&lt;Database{Database.java[Database~logout~QString;" name="mLogout" references="true" stamp="1430313832433" version="1.0"/>
+</session>

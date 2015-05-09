@@ -1,0 +1,195 @@
+package Handler;
+
+import java.io.IOException;
+import java.io.OutputStream;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map.Entry;
+import java.util.Observable;
+import java.util.Observer;
+import java.util.Set;
+
+import HttpServer.SimpleHttpServer;
+
+import com.sun.net.httpserver.HttpExchange;
+
+public class MessageHandler extends Handler{
+	
+	HashMap<Message, sendThread> list;
+	OnlineList onlineList;
+	
+	public MessageHandler(SimpleHttpServer server) {
+		super(server);
+		this.list = new HashMap<Message, sendThread>();
+		this.onlineList = new OnlineList();
+	}
+
+	public void handle(HttpExchange t) throws IOException {
+
+		
+		if (authenticate(t)) {			
+			
+			
+			if(params.get("sendMessage") != null){
+				
+				
+				if ( ((String)params.get("sendMessage")).equals("<?>")  ) {
+					Message m = new Message(username);
+					list.put(m, new sendThread(m, t));
+					return;
+				}
+				
+				String toUser = ((String)params.get("toUser")).split("User: ")[1];
+				String message = (String)params.get("sendMessage");
+				System.out.println(">" + toUser + "< >" + message + "<");
+				
+				for(Entry<Message, sendThread> s : list.entrySet()){
+					
+					if(s.getKey().name.equals(toUser)){
+						
+						System.out.println(message + " : " +  toUser);
+						s.getKey().message = message;
+						
+					}
+				}
+				
+				return;
+			}
+			
+			if(params.get("message") != null){
+				
+
+			if (params.get("message").equals("mLogin")) {
+
+				server.db.mLogin((String) params.get("loginUser"));
+				
+				onlineList.addAll(server.db.getOnline());
+				StringBuilder sb = new StringBuilder();
+
+				for (int i = 0; i < onlineList.size(); i++) {
+
+					sb.append(onlineList.get(i));
+				}
+				response = sb.toString();
+				
+				send(t);
+				return;
+
+			}
+
+			if (params.get("message").equals("mLogout")) {
+
+				onlineList.clear();
+				server.db.mLogout((String) params.get("logoutUser"));
+				onlineList.addAll(server.db.getOnline());
+
+				StringBuilder sb = new StringBuilder();
+
+				for (int i = 0; i < onlineList.size(); i++) {
+
+					sb.append(onlineList.get(i));
+				}
+				response = sb.toString();
+				send(t);
+				return;
+
+			}
+			}
+
+			response = server.fileMap.get("message.html");
+			send(t);
+						
+		} else {
+
+			System.out.println("Identification: Login unsuccessful");
+
+		}
+	}
+}
+
+class OnlineList {
+
+	public ArrayList<String> list;
+
+	public OnlineList() {
+
+		this.list = new ArrayList<String>();
+	}
+
+	public void clear() {
+
+		list.clear();
+	}
+
+	public String get(int i) {
+		return list.get(i);
+	}
+
+	public int size() {
+
+		return list.size();
+	}
+
+	public void addAll(List<String> newList) {
+
+		for (String s : newList) {
+
+			if (!list.contains(s)) {
+				list.add(s);
+			}
+		}
+	}
+}
+
+class Message{
+
+	public String message = "noSend";
+	public String name;
+	
+	public Message(String name){
+		
+		this.name = name;
+	}
+	
+	public void setMessage(String message){
+		
+		this.message = message;
+		
+	}
+}
+
+class sendThread extends Thread{
+	
+	String name;
+	Message m;
+	HttpExchange t;
+	
+	public sendThread (Message m, HttpExchange t){
+		
+		this.m = m;
+		this.t = t;
+		start();
+	}
+	
+	public void run(){
+		
+		if(!m.message.equals("noSend")){
+			
+		
+			try {
+				
+				System.out.println("send " + m.message + " - " + name);
+				t.sendResponseHeaders(200, m.message.length());
+				OutputStream os = t.getResponseBody();
+				os.write(m.message.getBytes());
+				os.close();
+
+			} catch (IOException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+		}
+	}
+
+}
